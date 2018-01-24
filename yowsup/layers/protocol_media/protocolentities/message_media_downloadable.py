@@ -2,6 +2,18 @@ from .message_media import MediaMessageProtocolEntity
 from yowsup.common.tools import WATools
 from yowsup.common.tools import MimeTools
 import os
+from Crypto.Cipher import AES
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
+from axolotl.kdf.hkdfv3 import HKDFv3
+from axolotl.util.byteutil import ByteUtil
+import binascii
+import base64
+import requests
+import tempfile
+
 class DownloadableMediaMessageProtocolEntity(MediaMessageProtocolEntity):
     '''
     <message t="{{TIME_STAMP}}" from="{{CONTACT_JID}}"
@@ -35,6 +47,69 @@ class DownloadableMediaMessageProtocolEntity(MediaMessageProtocolEntity):
         out += "File Size: %s\n" % self.size
         out += "File name: %s\n" % self.fileName
         return out
+
+    # def getfilenamemedia(self):
+    #     self.fileName
+
+    # def encrypt(self):
+    #     fd, encpath = tempfile.mkstemp()
+    #     mediaKey = os.urandom(112)
+    #     keys = mediacipher.getDerivedKeys(mediaKey)
+    #     print keys
+    #     print mediaKey
+    #     # out = mediacipher.encryptImage(self.filepath, keys)
+    #     # with open(encImagePath, 'w') as outF:
+    #     #     outF.write(out)
+    
+    #     # self.mediaKey = mediaKey
+    #     # self.encryptedFilepath = encpath
+    def decrypt(self, encimg, refkey):
+        # refkey="\350\244\337\367\225h\322\371\306\014\344\036L\224B\244\212\340\357V\264\031XG\266\246\3508\233.P\347"
+        print binascii.unhexlify(self.cryptKeys)
+        print self.cryptKeys
+        derivative = HKDFv3().deriveSecrets(refkey, binascii.unhexlify(self.cryptKeys), 112)
+        parts = ByteUtil.split(derivative, 16, 32)
+        iv = parts[0]
+        cipherKey = parts[1]
+        e_img = encimg[:-10]
+        AES.key_size=128
+        cr_obj = AES.new(key=cipherKey,mode=AES.MODE_CBC,IV=iv)
+        return cr_obj.decrypt(e_img)
+    # def encryptMedia(self,img, refkey,filetype):
+    #     key = self.getKey(filetype)
+    #     derivative = HKDFv3().deriveSecrets(binascii.unhexlify(refkey),
+    #                                         binascii.unhexlify(key), 112)
+    #     parts = ByteUtil.split(derivative, 16, 32)
+    #     iv = parts[0]
+    #     cipherKey = parts[1]
+    #     macKey=derivative[48:80]
+
+    #     mac = hmac.new(macKey,digestmod=hashlib.sha256)
+    #     mac.update(iv)
+
+    #     cipher = AES.new(key=cipherKey, mode=AES.MODE_CBC, IV=iv)
+    #     imgEnc = cipher.encrypt(self.pad(img))
+
+    #     mac.update(imgEnc)
+    #     hash = mac.digest()
+    #     hashKey = ByteUtil.trim(mac.digest(), 10)
+
+    #     finalEnc =  imgEnc + hashKey
+
+    #     return finalEnc
+
+    def isEncrypted(self):
+        return self.cryptKeys and self.mediaKey
+
+    def getMediaContent(self):
+        data = requests.get(self.url).content
+        # data = requests.get("https://mmg-fna.whatsapp.net/d/f/Agvvgqph4u8BYHL1UpXqMY4GiRj8Bof1sc06f8yAoTfY.enc").content
+        print self.url
+        # print self.mediaKey
+        # print data
+        if self.isEncrypted():
+            data = self.decrypt(data, self.mediaKey)
+        return bytearray(data)
 
     def getMediaSize(self):
         return self.size
@@ -74,6 +149,7 @@ class DownloadableMediaMessageProtocolEntity(MediaMessageProtocolEntity):
 
     @staticmethod
     def fromProtocolTreeNode(node):
+
         entity = MediaMessageProtocolEntity.fromProtocolTreeNode(node)
         entity.__class__ = DownloadableMediaMessageProtocolEntity
         mediaNode = node.getChild("media")
@@ -86,6 +162,7 @@ class DownloadableMediaMessageProtocolEntity(MediaMessageProtocolEntity):
             mediaNode.getAttributeValue("file"),
             mediaNode.getAttributeValue("mediakey")
             )
+        # print mediaNode
         return entity
 
     @staticmethod

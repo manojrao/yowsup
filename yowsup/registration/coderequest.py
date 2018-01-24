@@ -38,7 +38,7 @@ class WACodeRequest(WARequest):
         self.addParam("extexist", "1")
         self.addParam("extstate", "1")
 
-        self.addParam("token", YowsupEnv.getCurrent().getToken(p_in))
+        self.addParam("token", YowsupEnv.getCurrentfirst().getToken(p_in))
 
         self.url = "v.whatsapp.net/v2/code"
 

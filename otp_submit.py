@@ -5,3 +5,4 @@ opt = opt.replace('-', '')
 req = WARegRequest(config["cc"], config["phone"], opt)
 result = req.send()
 print result
+#before run file is /yowsup/registration.py

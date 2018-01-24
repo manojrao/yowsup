@@ -5,6 +5,7 @@ from six import with_metaclass
 logger = logging.getLogger(__name__)
 
 DEFAULT = "s40"
+# DEFAULT = "android"
 
 class YowsupEnvType(abc.ABCMeta):
     def __init__(cls, name, bases, dct):
@@ -52,6 +53,18 @@ class YowsupEnv(with_metaclass(YowsupEnvType, object)):
                 env = envs[0]
             logger.debug("Env not set, setting it to %s" % env)
             cls.setEnv(env)
+        # print cls.__CURR
+        return cls.__CURR
+    @classmethod
+    def getCurrentfirst(cls):
+        if cls.__CURR is None:
+            env = "android"
+            envs = cls.getRegisteredEnvs()
+            if env not in envs:
+                env = envs[0]
+            logger.debug("Env not set, setting it to %s" % env)
+            cls.setEnv(env)
+        # print cls.__CURR
         return cls.__CURR
 
     @abc.abstractmethod
@@ -86,6 +99,7 @@ class YowsupEnv(with_metaclass(YowsupEnvType, object)):
         return ""
 
     def getResource(self):
+        # print self.getOSName() + "-" + self.getVersion()
         return self.getOSName() + "-" + self.getVersion()
 
     def getUserAgent(self):
